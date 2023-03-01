@@ -7,6 +7,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
@@ -40,7 +41,7 @@ func main() {
 		}
 	})
 	c.OnHTML("#loto .number.additional", func(e *colly.HTMLElement) {
-		num, err := strconv.Atoi(e.Text)
+		num, err := strconv.Atoi(strings.TrimSpace(strings.ReplaceAll(e.Text, "Dodatna številka", "")))
 		if err != nil {
 			fmt.Println(err)
 			fmt.Printf("%T, %v", num, num)
