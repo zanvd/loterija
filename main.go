@@ -18,13 +18,33 @@ func main() {
 	drawNum := 0
 
 	c := colly.NewCollector()
+
+	crawl(c, &drawNum, results)
+
+	nums := make([]int, 0, len(results))
+	for n := range results {
+		nums = append(nums, n)
+	}
+	sort.SliceStable(nums, func(i, j int) bool {
+		return results[nums[i]].Normal < results[nums[j]].Normal
+	})
+
+	printToCmd(drawNum, nums, results)
+}
+
+type result struct {
+	Normal  int
+	Special int
+}
+
+func crawl(c *colly.Collector, drawNum *int, results map[int]*result) {
 	c.OnResponse(func(r *colly.Response) {
 		if r.StatusCode != 200 {
 			fmt.Println("status code", r.StatusCode)
 		}
 	})
 	c.OnHTML("#loto .archive-element", func(_ *colly.HTMLElement) {
-		drawNum++
+		*drawNum++
 	})
 	c.OnHTML("#loto .number.bg-prim", func(e *colly.HTMLElement) {
 		num, err := strconv.Atoi(e.Text)
@@ -100,21 +120,6 @@ func main() {
 		}(y)
 	}
 	wg.Wait()
-
-	nums := make([]int, 0, len(results))
-	for n := range results {
-		nums = append(nums, n)
-	}
-	sort.SliceStable(nums, func(i, j int) bool {
-		return results[nums[i]].Normal < results[nums[j]].Normal
-	})
-
-	printToCmd(drawNum, nums, results)
-}
-
-type result struct {
-	Normal  int
-	Special int
 }
 
 func getLowestOccurringSpecial(nums map[int]*result) int {
