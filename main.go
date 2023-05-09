@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/gocolly/colly/v2"
 	"math/rand"
 	"regexp"
 	"sort"
@@ -10,6 +9,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/gocolly/colly/v2"
 )
 
 func main() {
