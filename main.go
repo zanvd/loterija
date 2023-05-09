@@ -14,7 +14,7 @@ import (
 
 func main() {
 	results := make(map[int]*result)
-	draws := 0
+	drawNum := 0
 
 	c := colly.NewCollector()
 	c.OnResponse(func(r *colly.Response) {
@@ -23,7 +23,7 @@ func main() {
 		}
 	})
 	c.OnHTML("#loto .archive-element", func(_ *colly.HTMLElement) {
-		draws++
+		drawNum++
 	})
 	c.OnHTML("#loto .number.bg-prim", func(e *colly.HTMLElement) {
 		num, err := strconv.Atoi(e.Text)
@@ -108,27 +108,7 @@ func main() {
 		return results[nums[i]].Normal < results[nums[j]].Normal
 	})
 
-	lowestNormKey := 0
-	lowestNormal := make([]int, 0, 7)
-	fmt.Println("Total draws:", draws)
-	fmt.Printf("Number\tNormal\tSpecial\t%%\n")
-	for _, n := range nums {
-		if lowestNormKey < 7 {
-			lowestNormal = append(lowestNormal, n)
-			lowestNormKey++
-		}
-		fmt.Printf(
-			"%v\t%v\t%v\t%.2f\n",
-			n,
-			results[n].Normal,
-			results[n].Special,
-			float32(results[n].Normal)/float32(draws)*100,
-		)
-	}
-	fmt.Println("Normal numbers are:", lowestNormal)
-	fmt.Println("Special number:", getLowestOccurringSpecial(results))
-	fmt.Println("Random numbers are:", getRandomNumbers())
-	fmt.Println("Done")
+	printToCmd(drawNum, nums, results)
 }
 
 type result struct {
@@ -139,13 +119,25 @@ type result struct {
 func getLowestOccurringSpecial(nums map[int]*result) int {
 	currMinNum := 1
 	currMinVal := nums[currMinNum].Special
-	for k, n := range nums {
+	for i, n := range nums {
 		if n.Special < currMinVal {
-			currMinNum = k
+			currMinNum = i
 			currMinVal = n.Special
 		}
 	}
 	return currMinNum
+}
+
+func getHighestOccurringSpecial(nums map[int]*result) int {
+	currHighNum := 1
+	currHighVal := nums[currHighNum].Special
+	for i, n := range nums {
+		if n.Special > currHighVal {
+			currHighNum = i
+			currHighVal = n.Special
+		}
+	}
+	return currHighNum
 }
 
 func getRandomNumbers() []int {
@@ -171,4 +163,36 @@ func getURL(page int, year int) string {
 	return "https://www.loterija.si/loto/rezultati?selectedGame=loto&ajax=.archive-dynamic" +
 		"&page=" + strconv.Itoa(page) +
 		"&year=" + strconv.Itoa(year)
+}
+
+func printToCmd(drawNum int, nums []int, results map[int]*result) {
+	highestNormal := make([]int, 0, 7)
+	lowestNormKey := 0
+	lowestNormal := make([]int, 0, 7)
+	fmt.Println("Total draws:", drawNum)
+	fmt.Printf("Number\tNormal\tSpecial\t%%\n")
+	for i, n := range nums {
+		if i >= len(nums)-7 {
+			highestNormal = append([]int{n}, highestNormal...)
+		}
+		if lowestNormKey < 7 {
+			lowestNormal = append(lowestNormal, n)
+			lowestNormKey++
+		}
+		fmt.Printf(
+			"%v\t%v\t%v\t%.2f\n",
+			n,
+			results[n].Normal,
+			results[n].Special,
+			float32(results[n].Normal)/float32(drawNum)*100,
+		)
+	}
+	fmt.Println("Lowest occurring numbers:")
+	fmt.Println("\t- normal:", lowestNormal)
+	fmt.Println("\t- special:", getLowestOccurringSpecial(results))
+	fmt.Println("Highest occurring numbers:")
+	fmt.Println("\t- normal:", highestNormal)
+	fmt.Println("\t- special:", getHighestOccurringSpecial(results))
+	fmt.Println("Random numbers are:", getRandomNumbers())
+	fmt.Println("Done")
 }
