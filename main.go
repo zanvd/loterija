@@ -14,30 +14,30 @@ import (
 )
 
 func main() {
-	results := make(map[int]*result)
+	resultNums := make(map[int]*resultNum)
 	drawNum := 0
 
 	c := colly.NewCollector()
 
-	crawl(c, &drawNum, results)
+	crawl(c, &drawNum, resultNums)
 
-	nums := make([]int, 0, len(results))
-	for n := range results {
-		nums = append(nums, n)
+	sortedNums := make([]int, 0, len(resultNums))
+	for n := range resultNums {
+		sortedNums = append(sortedNums, n)
 	}
-	sort.SliceStable(nums, func(i, j int) bool {
-		return results[nums[i]].Normal < results[nums[j]].Normal
+	sort.SliceStable(sortedNums, func(i, j int) bool {
+		return resultNums[sortedNums[i]].Normal < resultNums[sortedNums[j]].Normal
 	})
 
-	printToCmd(drawNum, nums, results)
+	printToCmd(drawNum, sortedNums, resultNums)
 }
 
-type result struct {
+type resultNum struct {
 	Normal  int
 	Special int
 }
 
-func crawl(c *colly.Collector, drawNum *int, results map[int]*result) {
+func crawl(c *colly.Collector, drawNum *int, resultNums map[int]*resultNum) {
 	c.OnResponse(func(r *colly.Response) {
 		if r.StatusCode != 200 {
 			fmt.Println("status code", r.StatusCode)
@@ -52,10 +52,10 @@ func crawl(c *colly.Collector, drawNum *int, results map[int]*result) {
 			fmt.Println(err)
 			fmt.Printf("%T, %v", num, num)
 		}
-		if _, ok := results[num]; ok {
-			results[num].Normal++
+		if _, ok := resultNums[num]; ok {
+			resultNums[num].Normal++
 		} else {
-			results[num] = &result{
+			resultNums[num] = &resultNum{
 				Normal:  1,
 				Special: 0,
 			}
@@ -67,10 +67,10 @@ func crawl(c *colly.Collector, drawNum *int, results map[int]*result) {
 			fmt.Println(err)
 			fmt.Printf("%T, %v", num, num)
 		}
-		if _, ok := results[num]; ok {
-			results[num].Special++
+		if _, ok := resultNums[num]; ok {
+			resultNums[num].Special++
 		} else {
-			results[num] = &result{
+			resultNums[num] = &resultNum{
 				Normal:  0,
 				Special: 1,
 			}
@@ -122,10 +122,10 @@ func crawl(c *colly.Collector, drawNum *int, results map[int]*result) {
 	wg.Wait()
 }
 
-func getLowestOccurringSpecial(nums map[int]*result) int {
+func getLowestOccurringSpecial(sortedNums map[int]*resultNum) int {
 	currMinNum := 1
-	currMinVal := nums[currMinNum].Special
-	for i, n := range nums {
+	currMinVal := sortedNums[currMinNum].Special
+	for i, n := range sortedNums {
 		if n.Special < currMinVal {
 			currMinNum = i
 			currMinVal = n.Special
@@ -134,10 +134,10 @@ func getLowestOccurringSpecial(nums map[int]*result) int {
 	return currMinNum
 }
 
-func getHighestOccurringSpecial(nums map[int]*result) int {
+func getHighestOccurringSpecial(sortedNums map[int]*resultNum) int {
 	currHighNum := 1
-	currHighVal := nums[currHighNum].Special
-	for i, n := range nums {
+	currHighVal := sortedNums[currHighNum].Special
+	for i, n := range sortedNums {
 		if n.Special > currHighVal {
 			currHighNum = i
 			currHighVal = n.Special
@@ -171,14 +171,14 @@ func getURL(page int, year int) string {
 		"&year=" + strconv.Itoa(year)
 }
 
-func printToCmd(drawNum int, nums []int, results map[int]*result) {
+func printToCmd(drawNum int, sortedNums []int, resultNums map[int]*resultNum) {
 	highestNormal := make([]int, 0, 7)
 	lowestNormKey := 0
 	lowestNormal := make([]int, 0, 7)
 	fmt.Println("Total draws:", drawNum)
 	fmt.Printf("Number\tNormal\tSpecial\t%%\n")
-	for i, n := range nums {
-		if i >= len(nums)-7 {
+	for i, n := range sortedNums {
+		if i >= len(sortedNums)-7 {
 			highestNormal = append([]int{n}, highestNormal...)
 		}
 		if lowestNormKey < 7 {
@@ -188,17 +188,17 @@ func printToCmd(drawNum int, nums []int, results map[int]*result) {
 		fmt.Printf(
 			"%v\t%v\t%v\t%.2f\n",
 			n,
-			results[n].Normal,
-			results[n].Special,
-			float32(results[n].Normal)/float32(drawNum)*100,
+			resultNums[n].Normal,
+			resultNums[n].Special,
+			float32(resultNums[n].Normal)/float32(drawNum)*100,
 		)
 	}
 	fmt.Println("Lowest occurring numbers:")
 	fmt.Println("\t- normal:", lowestNormal)
-	fmt.Println("\t- special:", getLowestOccurringSpecial(results))
+	fmt.Println("\t- special:", getLowestOccurringSpecial(resultNums))
 	fmt.Println("Highest occurring numbers:")
 	fmt.Println("\t- normal:", highestNormal)
-	fmt.Println("\t- special:", getHighestOccurringSpecial(results))
+	fmt.Println("\t- special:", getHighestOccurringSpecial(resultNums))
 	fmt.Println("Random numbers are:", getRandomNumbers())
 	fmt.Println("Done")
 }
