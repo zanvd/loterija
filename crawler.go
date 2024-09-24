@@ -12,7 +12,6 @@ import (
 
 type crawlRes struct {
 	drawnNums  drawnNums
-	mu         sync.Mutex
 	numOfDraws int
 }
 
@@ -24,6 +23,8 @@ type drawnNum struct {
 type drawnNums map[int]drawnNum
 
 func crawl(c *colly.Collector) crawlRes {
+	var mu sync.Mutex
+
 	res := crawlRes{
 		drawnNums: make(drawnNums),
 	}
@@ -43,8 +44,8 @@ func crawl(c *colly.Collector) crawlRes {
 			fmt.Printf("%T, %v", num, num)
 		}
 
-		res.mu.Lock()
-		defer res.mu.Unlock()
+		mu.Lock()
+		defer mu.Unlock()
 
 		if dn, ok := res.drawnNums[num]; ok {
 			dn.Normal++
@@ -63,8 +64,8 @@ func crawl(c *colly.Collector) crawlRes {
 			fmt.Printf("%T, %v", num, num)
 		}
 
-		res.mu.Lock()
-		defer res.mu.Unlock()
+		mu.Lock()
+		defer mu.Unlock()
 
 		if dn, ok := res.drawnNums[num]; ok {
 			dn.Special++
