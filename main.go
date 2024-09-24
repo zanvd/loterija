@@ -17,9 +17,21 @@ func main() {
 	resultNums := make(map[int]*resultNum)
 	drawNum := 0
 
-	c := colly.NewCollector()
+	data, err := Read()
+	if err != nil {
+		fmt.Println("failed to read cache:", err)
+	} else {
+		resultNums = data.ResultNums
+		drawNum = data.DrawsNum
+	}
 
-	crawl(c, &drawNum, resultNums)
+	if data.LastVisit.Before(time.Now().UTC().Truncate(24 * time.Hour)) {
+		fmt.Println("Refreshing data.")
+
+		c := colly.NewCollector()
+
+		crawl(c, &drawNum, resultNums)
+	}
 
 	sortedNums := make([]int, 0, len(resultNums))
 	for n := range resultNums {
@@ -30,6 +42,10 @@ func main() {
 	})
 
 	printToCmd(drawNum, sortedNums, resultNums)
+
+	if err := Write(drawNum, resultNums); err != nil {
+		fmt.Println("failed to cache:", err)
+	}
 }
 
 type resultNum struct {
