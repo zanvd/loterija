@@ -7,15 +7,15 @@ import (
 	"time"
 )
 
-type CacheData struct {
-	DrawsNum   int                `json:"drawsNum"`
-	LastVisit  time.Time          `json:"lastVisit"`
-	ResultNums map[int]*resultNum `json:"resultNums"`
+type cacheData struct {
+	DrawnNums  drawnNums `json:"drawnNums"`
+	LastVisit  time.Time `json:"lastVisit"`
+	NumOfDraws int       `json:"numOfDraws"`
 }
 
-func Read() (CacheData, error) {
-	data := CacheData{
-		ResultNums: make(map[int]*resultNum),
+func read() (cacheData, error) {
+	data := cacheData{
+		DrawnNums: make(drawnNums),
 	}
 
 	f, err := os.OpenFile("./tmp/cache.json", os.O_RDONLY, 0644)
@@ -35,7 +35,7 @@ func Read() (CacheData, error) {
 	return data, nil
 }
 
-func Write(drawsNum int, resNums map[int]*resultNum) error {
+func write(numOfDraws int, drawnNums drawnNums) error {
 	if err := os.MkdirAll("./tmp", 0744); err != nil {
 		return fmt.Errorf("failed to create tmp directory: %w", err)
 	}
@@ -46,10 +46,10 @@ func Write(drawsNum int, resNums map[int]*resultNum) error {
 	}
 	defer closeFile(f)
 
-	data := CacheData{
-		DrawsNum:   drawsNum,
+	data := cacheData{
+		DrawnNums:  drawnNums,
 		LastVisit:  time.Now().UTC().Truncate(24 * time.Hour),
-		ResultNums: resNums,
+		NumOfDraws: numOfDraws,
 	}
 
 	enc := json.NewEncoder(f)

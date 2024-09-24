@@ -3,26 +3,22 @@ package main
 import (
 	"fmt"
 	"math/rand"
-	"regexp"
 	"sort"
-	"strconv"
-	"strings"
-	"sync"
 	"time"
 
 	"github.com/gocolly/colly/v2"
 )
 
 func main() {
-	resultNums := make(map[int]*resultNum)
-	drawNum := 0
+	countedNums := make(drawnNums)
+	numOfDraws := 0
 
-	data, err := Read()
+	data, err := read()
 	if err != nil {
 		fmt.Println("failed to read cache:", err)
 	} else {
-		resultNums = data.ResultNums
-		drawNum = data.DrawsNum
+		countedNums = data.DrawnNums
+		numOfDraws = data.NumOfDraws
 	}
 
 	if data.LastVisit.Before(time.Now().UTC().Truncate(24 * time.Hour)) {
@@ -30,115 +26,27 @@ func main() {
 
 		c := colly.NewCollector()
 
-		crawl(c, &drawNum, resultNums)
+		res := crawl(c)
+		countedNums = res.drawnNums
+		numOfDraws = res.numOfDraws
 	}
 
-	sortedNums := make([]int, 0, len(resultNums))
-	for n := range resultNums {
+	sortedNums := make([]int, 0, len(countedNums))
+	for n := range countedNums {
 		sortedNums = append(sortedNums, n)
 	}
 	sort.SliceStable(sortedNums, func(i, j int) bool {
-		return resultNums[sortedNums[i]].Normal < resultNums[sortedNums[j]].Normal
+		return countedNums[sortedNums[i]].Normal < countedNums[sortedNums[j]].Normal
 	})
 
-	printToCmd(drawNum, sortedNums, resultNums)
-
-	if err := Write(drawNum, resultNums); err != nil {
+	if err := write(numOfDraws, countedNums); err != nil {
 		fmt.Println("failed to cache:", err)
 	}
+
+	printToCmd(numOfDraws, sortedNums, countedNums)
 }
 
-type resultNum struct {
-	Normal  int
-	Special int
-}
-
-func crawl(c *colly.Collector, drawNum *int, resultNums map[int]*resultNum) {
-	c.OnResponse(func(r *colly.Response) {
-		if r.StatusCode != 200 {
-			fmt.Println("status code", r.StatusCode)
-		}
-	})
-	c.OnHTML("#loto .archive-element", func(_ *colly.HTMLElement) {
-		*drawNum++
-	})
-	c.OnHTML("#loto .number.bg-prim", func(e *colly.HTMLElement) {
-		num, err := strconv.Atoi(e.Text)
-		if err != nil {
-			fmt.Println(err)
-			fmt.Printf("%T, %v", num, num)
-		}
-		if _, ok := resultNums[num]; ok {
-			resultNums[num].Normal++
-		} else {
-			resultNums[num] = &resultNum{
-				Normal:  1,
-				Special: 0,
-			}
-		}
-	})
-	c.OnHTML("#loto .number.additional", func(e *colly.HTMLElement) {
-		num, err := strconv.Atoi(strings.TrimSpace(strings.ReplaceAll(e.Text, "Dodatna številka", "")))
-		if err != nil {
-			fmt.Println(err)
-			fmt.Printf("%T, %v", num, num)
-		}
-		if _, ok := resultNums[num]; ok {
-			resultNums[num].Special++
-		} else {
-			resultNums[num] = &resultNum{
-				Normal:  0,
-				Special: 1,
-			}
-		}
-	})
-	c.OnHTML("a.pagination-arrow.right", func(e *colly.HTMLElement) {
-		// Some endpoints include empty next page URLs and since there's no year with more than 2 pages,
-		// it's hardcoded atm.
-		/*regPage := regexp.MustCompile(".*page=(\\d+).*")
-		matchesPage := regPage.FindStringSubmatch(e.Attr("href"))
-		p, err := strconv.Atoi(matchesPage[1])
-		if err != nil {
-			fmt.Printf("failed to get the page number from %q: %s", e.Attr("href"), err)
-		}*/
-		p := 2
-
-		regYear := regexp.MustCompile(".*year=(\\d+).*")
-		matchesYear := regYear.FindStringSubmatch(e.Attr("href"))
-		y, err := strconv.Atoi(matchesYear[1])
-		if err != nil {
-			fmt.Printf("failed to get the year from %q: %s", e.Attr("href"), err)
-		}
-
-		u := getURL(p, y)
-		if u != e.Request.URL.String() {
-			err = e.Request.Visit(u)
-			if err != nil {
-				fmt.Println("Failed to visit", u)
-				fmt.Println(err)
-			}
-		}
-	})
-
-	var wg sync.WaitGroup
-	for y := 1991; y <= time.Now().Year(); y++ {
-		wg.Add(1)
-
-		go func(y int) {
-			defer wg.Done()
-
-			url := getURL(1, y)
-			err := c.Visit(url)
-			if err != nil {
-				fmt.Println("Failed to visit", url)
-				fmt.Println(err)
-			}
-		}(y)
-	}
-	wg.Wait()
-}
-
-func getLowestOccurringSpecial(sortedNums map[int]*resultNum) int {
+func getLowestOccurringSpecial(sortedNums drawnNums) int {
 	currMinNum := 1
 	currMinVal := sortedNums[currMinNum].Special
 	for i, n := range sortedNums {
@@ -150,7 +58,7 @@ func getLowestOccurringSpecial(sortedNums map[int]*resultNum) int {
 	return currMinNum
 }
 
-func getHighestOccurringSpecial(sortedNums map[int]*resultNum) int {
+func getHighestOccurringSpecial(sortedNums drawnNums) int {
 	currHighNum := 1
 	currHighVal := sortedNums[currHighNum].Special
 	for i, n := range sortedNums {
@@ -180,17 +88,11 @@ func getRandomNumbers() []int {
 	return nums
 }
 
-func getURL(page int, year int) string {
-	return "https://www.loterija.si/loto/rezultati?selectedGame=loto&ajax=.archive-dynamic" +
-		"&page=" + strconv.Itoa(page) +
-		"&year=" + strconv.Itoa(year)
-}
-
-func printToCmd(drawNum int, sortedNums []int, resultNums map[int]*resultNum) {
+func printToCmd(numOfDraws int, sortedNums []int, resultNums drawnNums) {
 	highestNormal := make([]int, 0, 7)
 	lowestNormKey := 0
 	lowestNormal := make([]int, 0, 7)
-	fmt.Println("Total draws:", drawNum)
+	fmt.Println("Number of draws:", numOfDraws)
 	fmt.Printf("Number\tNormal\tSpecial\t%%\n")
 	for i, n := range sortedNums {
 		if i >= len(sortedNums)-7 {
@@ -205,7 +107,7 @@ func printToCmd(drawNum int, sortedNums []int, resultNums map[int]*resultNum) {
 			n,
 			resultNums[n].Normal,
 			resultNums[n].Special,
-			float32(resultNums[n].Normal)/float32(drawNum)*100,
+			float32(resultNums[n].Normal)/float32(numOfDraws)*100,
 		)
 	}
 	fmt.Println("Lowest occurring numbers:")
