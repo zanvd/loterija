@@ -163,7 +163,6 @@ func getHighestOccurringSpecial(sortedNums map[int]*resultNum) int {
 }
 
 func getRandomNumbers() []int {
-	rand.Seed(time.Now().UnixNano())
 	nums := make([]int, 0, 7)
 	for i := 0; i < 7; {
 		num := rand.Intn(40) + 1
