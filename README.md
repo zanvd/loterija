@@ -1,4 +1,4 @@
-Simple Loterija result scraper for the Loto game.
+Simple [Loterija](https://www.loterija.si/) result scraper for the [Loto](https://www.loterija.si/loto/rezultati) game.
 
 Made with:
 
@@ -7,9 +7,7 @@ Made with:
 
 Installation and usage
 ```shell
-#!/bin/bash
 go mod downlaod
 GOOS=linux go build -o ./dist/loterija .
-
 ./dist/loterija
 ```
